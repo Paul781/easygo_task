@@ -35,3 +35,5 @@ terraform.rc
 
 .DS_Store
 .terraform.lock.hcl
+
+**/__pycache__/*
