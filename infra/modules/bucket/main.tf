@@ -24,3 +24,13 @@ resource "google_storage_bucket_object" "archive" {
   bucket = google_storage_bucket.cf-bucket.name
   source = "${path.root}/../generated/src.zip"
 }
+
+# dataflow-bucket
+resource "google_storage_bucket" "df-bucket" {
+  name     = "easygo-df-bucket"
+  location = var.location
+  storage_class = var.bucket_storage_class
+  force_destroy = false
+  uniform_bucket_level_access = true
+}
+# storage object for dataflow file

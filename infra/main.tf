@@ -5,11 +5,6 @@ module "bucket" {
   location = var.location
 }
 
-# dataflow-bucket
-
-# storage object for dataflow file
-
-
 # service accounts and IAM roles
 module "service_account" {
   source     = "./modules/service_account"
@@ -31,4 +26,4 @@ module "bigquery" {
     location = var.location
 }
 
-# in sliver, only minimal or "just-enough" transformations and data cleansing rules are applied 
+

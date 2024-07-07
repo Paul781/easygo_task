@@ -22,8 +22,26 @@ resource "google_bigquery_table" "weather_silver" {
   {
     "name": "city",
     "type": "STRING",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Name of the city"
+  },
+  {
+    "name": "country",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Country of the city"
+  },
+  {
+    "name": "latitude",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "description": "Latitude of the city"
+  },
+  {
+    "name": "longitude",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "description": "Longitude of the city"
   },
   {
     "name": "temp_celsius",
@@ -64,13 +82,20 @@ resource "google_bigquery_table" "weather_silver" {
   {
     "name": "timestamp",
     "type": "TIMESTAMP",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Timestamp of data collection"
   }
 ]
 EOF
 
   deletion_protection = false
+
+  # table_constraints {
+  #   primary_key {
+  #     columns = ["city", "timestamp"]
+  #   }
+  # }
+
 }
 # Create a BigQuery dataset for gold layer
 resource "google_bigquery_dataset" "weather_gold" {
@@ -96,13 +121,13 @@ resource "google_bigquery_table" "weather_fact" {
   {
     "name": "date_key",
     "type": "INTEGER",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Date key for joining with DateDim"
   },
   {
     "name": "city_key",
     "type": "INTEGER",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "City key for joining with CityDim"
   },
   {
@@ -133,6 +158,12 @@ resource "google_bigquery_table" "weather_fact" {
 EOF
 
   deletion_protection = false
+
+  # table_constraints {
+  #   primary_key {
+  #     columns = ["date_key", "city_key"]
+  #   }
+  # }
 }
 
 # Create DateDim table
@@ -145,61 +176,67 @@ resource "google_bigquery_table" "date_dim" {
   {
     "name": "date_key",
     "type": "INTEGER",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Unique identifier for the date"
   },
   {
     "name": "full_date",
     "type": "DATE",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Full date in DATE format"
   },
   {
     "name": "year",
     "type": "INTEGER",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Year"
   },
   {
     "name": "month",
     "type": "INTEGER",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Month number (1-12)"
   },
   {
     "name": "day",
     "type": "INTEGER",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Day of the month"
   },
   {
     "name": "day_of_week",
     "type": "INTEGER",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Day of the week (0-6)"
   },
   {
     "name": "day_name",
     "type": "STRING",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Name of the day"
   },
   {
     "name": "month_name",
     "type": "STRING",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Name of the month"
   },
   {
     "name": "quarter",
     "type": "INTEGER",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Quarter of the year (1-4)"
   }
 ]
 EOF
 
   deletion_protection = false
+
+  # table_constraints {
+  #   primary_key {
+  #     columns = ["date_key"]
+  #   }
+  # }
 }
 
 # Create CityDim table
@@ -212,35 +249,40 @@ resource "google_bigquery_table" "city_dim" {
   {
     "name": "city_key",
     "type": "INTEGER",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Unique identifier for the city"
   },
   {
     "name": "city_name",
     "type": "STRING",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Name of the city"
   },
   {
     "name": "country",
     "type": "STRING",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Country of the city"
   },
   {
     "name": "latitude",
     "type": "FLOAT",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Latitude of the city"
   },
   {
     "name": "longitude",
     "type": "FLOAT",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Longitude of the city"
   }
 ]
 EOF
 
   deletion_protection = false
+  # table_constraints {
+  #   primary_key {
+  #     columns = ["city_key"]
+  #   }
+  # }
 }

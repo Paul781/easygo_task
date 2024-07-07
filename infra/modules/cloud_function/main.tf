@@ -1,7 +1,7 @@
 resource "google_cloud_scheduler_job" "job" {
   name             = "cloud-function-scheduler"
   description      = "Trigger the ${google_cloudfunctions_function.function.name} Cloud Function."
-  schedule         = "0 0 * * *" # Every Day
+  schedule         = "0 8 * * *" # Every Day 8 am
   time_zone        = "Australia/Sydney"
   attempt_deadline = "900s" # 15 mins
 
@@ -20,11 +20,15 @@ resource "google_cloud_scheduler_job" "job" {
 resource "google_cloudfunctions_function" "function" {
   name        = "api-read-cf"
   description = "Cloud Function loads data from API to bucket"
-  runtime     = "python37"
+  runtime     = "python39"
 
   available_memory_mb   = 512
   source_archive_bucket = var.bucket_name
   source_archive_object = var.object
   trigger_http          = true
   entry_point           = "http_handler" # This is the name of the function that will be executed in your Python code
+  environment_variables = {
+    lat = "-37.8136",  # Melbourne
+    lon = "144.9631"
+  }
 }
