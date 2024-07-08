@@ -126,7 +126,7 @@ resource "google_bigquery_table" "weather_fact" {
   },
   {
     "name": "city_key",
-    "type": "INTEGER",
+    "type": "STRING",
     "mode": "NULLABLE",
     "description": "City key for joining with CityDim"
   },
@@ -248,7 +248,7 @@ resource "google_bigquery_table" "city_dim" {
 [
   {
     "name": "city_key",
-    "type": "INTEGER",
+    "type": "STRING",
     "mode": "NULLABLE",
     "description": "Unique identifier for the city"
   },

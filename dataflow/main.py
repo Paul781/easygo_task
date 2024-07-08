@@ -5,9 +5,19 @@ import json
 from datetime import datetime
 import argparse
 
+def generate_city_key(city, country):
+    return f"{city}_{country}".replace(" ", "_").lower()
+
 class ParseJson(beam.DoFn):
     def process(self, element):
         return [json.loads(element)]
+
+
+class DeduplicateByKey(beam.DoFn):
+    def process(self, element, existing_keys):
+        key = element['city_key']
+        if key not in existing_keys:
+            yield element
 
 class TransformForSilver(beam.DoFn):
     def process(self, element):
@@ -46,10 +56,10 @@ class PrepareForGoldLayer(beam.DoFn):
         try:
             date_obj = datetime.strptime(element['timestamp'].split('T')[0], '%Y-%m-%d')
             date_key = int(date_obj.strftime('%Y%m%d')) if date_obj else 19000101
-            
+            city_key = generate_city_key(element['city'], element['country'])
             return [{
                 'date_key': date_key,
-                'city_key': hash(element['city']) % (10 ** 8) if  hash(element['city']) else 00000000,  
+                'city_key': city_key if  city_key else "Unknow",  
                 'avg_temp_celsius': element['temp_celsius'],
                 'avg_humidity': float(element['humidity']),
                 'avg_pressure': float(element['pressure']),
@@ -59,7 +69,7 @@ class PrepareForGoldLayer(beam.DoFn):
             print(f"KeyError: {e} - Skipping this element")
             return [{
                 'date_key': 19000101,
-                'city_key': 00000000,  
+                'city_key': "Unknow",  
                 'avg_temp_celsius': 0.0,
                 'avg_humidity': 0.0,
                 'avg_pressure': 0.0,
@@ -99,9 +109,10 @@ class PrepareDateDim(beam.DoFn):
     
 class PrepareCityDim(beam.DoFn):
     def process(self, element):
+        city_key = generate_city_key(element['city'], element['country'])
         try:
             return [{
-                'city_key': hash(element['city']) % (10 ** 8) if hash(element['city']) else 00000000,  
+                'city_key': city_key if city_key else "Unknown",  
                 'city_name': element['city'],
                 'country': element['country'],
                 'latitude': element['latitude'],
@@ -110,7 +121,7 @@ class PrepareCityDim(beam.DoFn):
         except KeyError as e:
             print(f"KeyError: {e} - Skipping this element")
             return [{
-                'city_key': 00000000,  
+                'city_key': "Unknown",  
                 'city_name': "Unknown",
                 'country': "Unknown",
                 'latitude':  0.0,
@@ -135,6 +146,15 @@ def run(argv=None, save_main_session=True):
             | 'Add Key' >> beam.Map(lambda elem: ((elem['city'], elem['timestamp']), elem))
             | 'Group by Key' >> beam.GroupByKey()
             | 'Take First to deduplicate' >> beam.Map(lambda key_value: next(iter(key_value[1])))
+        )
+
+        # Read existing keys from BigQuery
+        existing_keys = (p 
+            | 'Read existing keys' >> beam.io.ReadFromBigQuery(
+                query='SELECT city_key FROM `easygo-task-428510.weather_gold.CityDim`',
+                use_standard_sql=True)
+            | 'Extract keys' >> beam.Map(lambda row: row['city_key'])
+            | 'Create set' >> beam.combiners.ToSet()
         )
 
         # Write to Silver layer
@@ -163,7 +183,7 @@ def run(argv=None, save_main_session=True):
         # Write to WeatherFact table
         gold_data | 'Write to WeatherFact' >> beam.io.WriteToBigQuery(
             table='easygo-task-428510.weather_gold.WeatherFact',
-            schema ='date_key:INTEGER,city_key:INTEGER,avg_temp_celsius:FLOAT,avg_humidity:FLOAT,avg_pressure:FLOAT,avg_wind_speed:FLOAT',
+            schema ='date_key:INTEGER,city_key:STRING,avg_temp_celsius:FLOAT,avg_humidity:FLOAT,avg_pressure:FLOAT,avg_wind_speed:FLOAT',
             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED
         )
@@ -185,9 +205,13 @@ def run(argv=None, save_main_session=True):
         # Prepare and write CityDim
         (transformed_data 
             | 'Prepare CityDim' >> beam.ParDo(PrepareCityDim())
+            | 'Key by city_key' >> beam.Map(lambda row: (row['city_key'], row))
+            | 'Group by city_key' >> beam.GroupByKey()
+            | 'Take first of each group for city' >> beam.Map(lambda key_value: next(iter(key_value[1])))
+            | 'Deduplicate by key' >> beam.ParDo(DeduplicateByKey(), existing_keys=beam.pvalue.AsSingleton(existing_keys))
             | 'Write to CityDim' >> beam.io.WriteToBigQuery(
                 table='easygo-task-428510.weather_gold.CityDim',
-                schema='city_key:INTEGER,city_name:STRING,country:STRING,latitude:FLOAT,longitude:FLOAT',
+                schema='city_key:STRING,city_name:STRING,country:STRING,latitude:FLOAT,longitude:FLOAT',
                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED
             )
