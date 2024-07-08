@@ -7,7 +7,7 @@ solution design diagram and explain
 data schema and explain
 raw json file bronze, sliver and gold
 
-
+![alt text](https://github.com/Paul781/easygo_task/blob/dev/image/file_structure.png?raw=true)
 
 Usage:
 go to the infra folder, run terraform command locally
